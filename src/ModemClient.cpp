@@ -70,7 +70,43 @@ int ModemClient::commandSmartSend(char *command, String &buffer,int attempts, in
             attempt++;
         }
     }
-    if(attempt >= 10){
+    if(attempt >= attempts){
+        last_error = CE_TIMEOUT;
+        // Serial.println("TIMEOUT");
+        return -1;
+    }
+    // Serial.print("BUF: ");
+    // Serial.println(buffer);
+    return 0;
+}
+int ModemClient::commandSmartRead(String &buffer,int attempts, int timeout, bool wait){
+    int attempt = 0;
+   
+    while(attempt < attempts){
+        ReadResponseResultEnum read_result = modem->readResponse(buffer,timeout,wait);
+        if(read_result == READ_OK){
+            break;
+        }else if(read_result != READ_TIMEOUT){
+            //return as some error occured in sending
+            switch(read_result){
+                case READ_ERROR:
+                    last_error = CE_ERROR;
+                    break;
+                case READ_NO_CARRIER:
+                    last_error = CE_NO_CARRIER;
+                    break;
+                case READ_CME_ERROR:
+                    last_error = CE_CME_ERROR;
+                    break;
+            }
+            // Serial.println("OTHER ERROR");
+            // Serial.println(last_error);
+            return -1;
+        }else{
+            attempt++;
+        }
+    }
+    if(attempt >= attempts){
         last_error = CE_TIMEOUT;
         // Serial.println("TIMEOUT");
         return -1;
@@ -175,6 +211,15 @@ int ModemClient::socketConnect(int socket, char* address, int port){
     }
     return 1;
 }
+bool ModemClient::waitForBytePrompt(unsigned long timeout){
+    while(wait_for_response && !modem->available()){
+        if(millis()-start_time >= timeout){
+            return 0;
+        }
+    };
+    char c = modem->read();
+    return(c == '@');
+}
 int ModemClient::socketWriteTCP(int socket, char* buffer){
     size_t buffer_length = strlen(buffer);
     //char command[16+SOCKET_WRITE_MAX_SIZE];
@@ -194,24 +239,24 @@ int ModemClient::socketWriteTCP(int socket, char* buffer){
         command += socket;
         command += ",";
         command += (uint16_t)chunkSize;
-        command += ",\"";
+        // command += ",\"";
 
-
-        for (size_t i = 0; i < chunkSize; i++) {
-            byte b = buffer[i + written];
-
-            byte n1 = (b >> 4) & 0x0f;
-            byte n2 = (b & 0x0f);
-
-            command += (char)(n1 > 9 ? 'A' + n1 - 10 : '0' + n1);
-            command += (char)(n2 > 9 ? 'A' + n2 - 10 : '0' + n2);
+        if(!waitForBytePrompt(PROMP_TIMEOUT)){
+            last_error = CE_BYTE_PROMPT_NOT_FOUND;
+            return -written;
         }
-        command += "\"";
+        //says to wait for atleast 50ms before sending data
+        delay(50);
+        //write the chunkSize worth of bytes after the currently written number
+        modem.write((uint8_t*)buffer[written],chunkSize);
         _buffer = "";
-        int val = commandSmartSend((char*)command.c_str(),_buffer,10,COMMAND_TIMEOUT ,true);
+        //check if an OK is returned (may make it check the number of bytes that were recieved)
+        int val = commandSmartRead(_buffer,10,COMMAND_TIMEOUT,true);
         if(val == -1){
             return -written;
         }
+
+
         written += chunkSize;
         buffer_length -= chunkSize;
     }
@@ -237,20 +282,23 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     uint16_t bytes = 0;
     //get the number of bytes that were sent
     int sscanf_result = sscanf(reply_section.c_str(),"+USORD: %*d, %d",&bytes);
-    int bytes_start = reply_section.indexOf("\"");
-    char* c_str_pointer = reply_section.c_str();
-    //copy the bytes from the reply string
-    for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
-        return_buffer[byte_ind] = 
-    }
-    // Serial.print("SCAN ");
-    // Serial.println(sscanf_result);
 
-    //if sscanf finds less than 1 value
+    //if sscanf finds less than 2 value
     if(sscanf_result < 2){
         //expected reply value doesnt exists
         last_error = CE_REPLY_VALUE_INVALID;
         return -1;
     }
+    //find where the bytes start
+    int bytes_start = reply_section.indexOf("\"");
+    char* c_str_pointer = reply_section.c_str();
+    //copy the bytes from the reply section string to the return buffer up to the number of bytes sent
+    for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
+        return_buffer[byte_ind] = c_str_pointer[bytes_start+byte_ind];
+    }
+    // Serial.print("SCAN ");
+    // Serial.println(sscanf_result);
+
+
     return sscanf_result;
 }

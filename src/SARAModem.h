@@ -31,6 +31,9 @@ class SARAModem{
         void send(const char* command);
         void send(const String& command) { send(command.c_str()); }
         void sendf(const char *fmt, ...);
+
+        bool available();
+        char read();
     private:
         HardwareSerial* sara_serial;
         int baudrate;

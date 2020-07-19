@@ -38,13 +38,15 @@
 #define SOCKET_WRITE_MAX_SIZE 512
 #define SOCKET_WRITE_MAX_SIZE 512
 #define COMMAND_TIMEOUT 200
+#define PROMP_TIMEOUT 100
 enum CommandErrorEnum{
     CE_TIMEOUT,
     CE_ERROR,
     CE_NO_CARRIER,
     CE_CME_ERROR,
     CE_REPLY_NOT_FOUND,
-    CE_REPLY_VALUE_INVALID
+    CE_REPLY_VALUE_INVALID,
+    CE_BYTE_PROMPT_NOT_FOUND
 };
 enum SocketQueryTypeEnum{
     SQUERY_TYPE = 0,
@@ -103,7 +105,7 @@ class ModemClient : public Client {
         int socketWriteTCP(int socket, String &buffer);
         int socketReadTCP(int socket, char* return_buffer, size_t size);
 
-        
+        bool waitForBytePrompt(unsigned long timeout);
         CommandErrorEnum last_error = CE_TIMEOUT;
     private:
         int commandSmartSend(char *command, String &buffer, int attempts, int timeout, bool wait);

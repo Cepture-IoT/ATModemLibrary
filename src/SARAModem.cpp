@@ -25,6 +25,7 @@ void SARAModem::on(){
     delay(100);
     digitalWrite(reset_pin, LOW);
 }
+
 ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long timeout, bool wait_for_response){
     int responseResultIndex = -1;
     unsigned long start_time = millis();
@@ -144,4 +145,10 @@ void SARAModem::sendf(const char *fmt, ...)
   va_end(ap);
 
   send(buf);
+}
+bool SARAModem::available(){
+    return sara_serial->available();
+}
+char SARAModem::read(){
+    return sara_serial->read();
 }
