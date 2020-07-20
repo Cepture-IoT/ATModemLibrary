@@ -26,7 +26,7 @@ void SARAModem::on(){
     digitalWrite(reset_pin, LOW);
 }
 
-ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long timeout, bool wait_for_response){
+ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
     int responseResultIndex = -1;
     unsigned long start_time = millis();
     //wait for response if told too
@@ -41,12 +41,12 @@ ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long tim
     while(sara_serial->available()){
         char c = sara_serial->read();
         read_buffer += c;
-
+            Serial.print(result);
+            Serial.print(" ");
+            Serial.println(read_buffer);
         //if newline or carriage return then a message has ended
         if(c == '\n'){
-            // Serial.print(result);
-            // Serial.print(" ");
-            // Serial.println(read_buffer);
+
             //check if echo
             responseResultIndex = read_buffer.lastIndexOf("AT");
             if(responseResultIndex != -1){
@@ -90,8 +90,9 @@ ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long tim
             read_buffer = "";
         }
         //the board can read too fast for serial data to show up so wait for a period of time if no data is available incase its just lag
-        if(!sara_serial->available()){
-            delay(50);
+        start_time = millis();
+        while(!sara_serial->available() && millis() - start_time <= lag_timeout){
+            delay(10);
         }
     }
     return result;

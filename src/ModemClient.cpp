@@ -42,12 +42,12 @@ uint8_t ModemClient::connected(){
 ModemClient::operator bool(){
 
 }
-int ModemClient::commandSmartSend(char *command, String &buffer,int attempts, int timeout, bool wait){
+int ModemClient::commandSmartSend(char *command, String &buffer,int attempts, int timeout, bool wait, unsigned long lag_timeout){
     int attempt = 0;
    
     while(attempt < attempts){
         modem->send(command);
-        ReadResponseResultEnum read_result = modem->readResponse(buffer,timeout,wait);
+        ReadResponseResultEnum read_result = modem->readResponse(buffer,timeout,wait,lag_timeout);
         if(read_result == READ_OK){
             break;
         }else if(read_result != READ_TIMEOUT){
@@ -115,6 +115,28 @@ int ModemClient::commandSmartRead(String &buffer,int attempts, int timeout, bool
     // Serial.println(buffer);
     return 0;
 }
+bool ModemClient::waitForBytePrompt(unsigned long timeout){
+    unsigned long start_time = millis();
+    while(!modem->available()){
+        if(millis()-start_time >= timeout){
+            last_error = CE_BYTE_PROMPT_TIMEOUT;
+            return false;
+        }
+    };
+    while(modem->available()){
+        char c = modem->read();
+        if(c == '@'){
+            return true;
+        }
+        if(!modem->available()){
+            delay(10);
+        }
+    }
+    last_error = CE_BYTE_PROMPT_NOT_FOUND;
+    return false;
+
+    
+}
 int ModemClient::socketCreate(bool use_tcp, int port){
     char command[50];
     _buffer = "";
@@ -127,10 +149,10 @@ int ModemClient::socketCreate(bool use_tcp, int port){
     }
 
     int URC_start = _buffer.lastIndexOf("+USOCR:");
-    // Serial.println("HERE");
-    // Serial.println(_buffer);
-    // Serial.println(URC_start);
-    // Serial.println("HERE2");
+    Serial.println("HERE");
+    Serial.println(_buffer);
+    Serial.println(URC_start);
+    Serial.println("HERE2");
     //check if expected reply exists
     if(URC_start == -1){
         //reply not found
@@ -139,9 +161,10 @@ int ModemClient::socketCreate(bool use_tcp, int port){
     }
     String reply_section = _buffer.substring(URC_start);
     int socket = -1;
+//    return 0;
     int sscanf_result = sscanf(reply_section.c_str(),"+USOCR: %d",&socket);
-    // Serial.print("SCAN ");
-    // Serial.println(sscanf_result);
+     Serial.print("SCAN ");
+     Serial.println(sscanf_result);
 
     //if sscanf finds nothing or socket is out of range
     if(sscanf_result != 1 || socket < SOCKET_MIN || socket > SOCKET_MAX){
@@ -205,31 +228,23 @@ int ModemClient::socketConnect(int socket, char* address, int port){
     _buffer = "";
     snprintf(command,50, "AT+USOCO=%d,\"%s\",%d",socket, address, port);
 
-    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);
+    int val = commandSmartSend(command,_buffer,10,10000 ,true,10000);
     if(val == -1){
         return -1;
     }
     return 1;
 }
-bool ModemClient::waitForBytePrompt(unsigned long timeout){
-    while(wait_for_response && !modem->available()){
-        if(millis()-start_time >= timeout){
-            return 0;
-        }
-    };
-    char c = modem->read();
-    return(c == '@');
-}
+
 int ModemClient::socketWriteTCP(int socket, char* buffer){
     size_t buffer_length = strlen(buffer);
     //char command[16+SOCKET_WRITE_MAX_SIZE];
     String command;
-    command.reserve(19+ (buffer_length < SOCKET_WRITE_MAX_SIZE ? buffer_length : SOCKET_WRITE_MAX_SIZE)*2);
+    command.reserve(19);//+(buffer_length < SOCKET_WRITE_MAX_SIZE ? buffer_length : SOCKET_WRITE_MAX_SIZE));
 
     int written = 0;
     //split buffer into chunks, mostly stolen from NBMKR
-    while(buffer_size){
-        size_t chunkSize = size;
+    while(buffer_length){
+        size_t chunkSize = buffer_length;
 
         if (chunkSize > SOCKET_WRITE_MAX_SIZE) {
             chunkSize = SOCKET_WRITE_MAX_SIZE;
@@ -240,15 +255,14 @@ int ModemClient::socketWriteTCP(int socket, char* buffer){
         command += ",";
         command += (uint16_t)chunkSize;
         // command += ",\"";
-
+        modem->send(command);
         if(!waitForBytePrompt(PROMP_TIMEOUT)){
-            last_error = CE_BYTE_PROMPT_NOT_FOUND;
             return -written;
         }
         //says to wait for atleast 50ms before sending data
         delay(50);
         //write the chunkSize worth of bytes after the currently written number
-        modem.write((uint8_t*)buffer[written],chunkSize);
+        modem->write((uint8_t*)buffer[written],chunkSize);
         _buffer = "";
         //check if an OK is returned (may make it check the number of bytes that were recieved)
         int val = commandSmartRead(_buffer,10,COMMAND_TIMEOUT,true);
@@ -279,7 +293,7 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     }
     int URC_start = _buffer.lastIndexOf("+USORD:");
     String reply_section = _buffer.substring(URC_start);
-    uint16_t bytes = 0;
+    int bytes = 0;
     //get the number of bytes that were sent
     int sscanf_result = sscanf(reply_section.c_str(),"+USORD: %*d, %d",&bytes);
 
@@ -291,7 +305,7 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     }
     //find where the bytes start
     int bytes_start = reply_section.indexOf("\"");
-    char* c_str_pointer = reply_section.c_str();
+    const char* c_str_pointer = reply_section.c_str();
     //copy the bytes from the reply section string to the return buffer up to the number of bytes sent
     for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
         return_buffer[byte_ind] = c_str_pointer[bytes_start+byte_ind];
@@ -300,5 +314,5 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     // Serial.println(sscanf_result);
 
 
-    return sscanf_result;
+    return bytes;
 }

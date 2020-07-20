@@ -36,9 +36,9 @@
 #define SOCKET_MIN 0
 #define SOCKET_MAX 6
 #define SOCKET_WRITE_MAX_SIZE 512
-#define SOCKET_WRITE_MAX_SIZE 512
+#define SOCKET_READ_MAX_SIZE 512
 #define COMMAND_TIMEOUT 200
-#define PROMP_TIMEOUT 100
+#define PROMP_TIMEOUT 2000
 enum CommandErrorEnum{
     CE_TIMEOUT,
     CE_ERROR,
@@ -46,6 +46,7 @@ enum CommandErrorEnum{
     CE_CME_ERROR,
     CE_REPLY_NOT_FOUND,
     CE_REPLY_VALUE_INVALID,
+    CE_BYTE_PROMPT_TIMEOUT,
     CE_BYTE_PROMPT_NOT_FOUND
 };
 enum SocketQueryTypeEnum{
@@ -108,7 +109,8 @@ class ModemClient : public Client {
         bool waitForBytePrompt(unsigned long timeout);
         CommandErrorEnum last_error = CE_TIMEOUT;
     private:
-        int commandSmartSend(char *command, String &buffer, int attempts, int timeout, bool wait);
+        int commandSmartSend(char *command, String &buffer, int attempts, int timeout, bool wait, unsigned long lag_timeout = 50);
+        int commandSmartRead(String &buffer,int attempts, int timeout, bool wait);
         SARAModem* modem;
         String _buffer;
         

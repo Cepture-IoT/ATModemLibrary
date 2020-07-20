@@ -22,7 +22,7 @@ class SARAModem{
         void on();
         BeginResultEnum begin();
         //reads the response from the sara module, if echo detected skips echo, stores everything after echo other than the OK/ERROR/whatever at the end
-        ReadResponseResultEnum readResponse(String &response_buffer, unsigned long time_out, bool wait_for_response = false);
+        ReadResponseResultEnum readResponse(String &response_buffer, unsigned long time_out, bool wait_for_response = false, unsigned long lag_timeout = 50);
         bool echo_enabled;
         
         size_t write(uint8_t c);
