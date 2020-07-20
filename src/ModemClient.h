@@ -98,14 +98,14 @@ class ModemClient : public Client {
         //sockets
         int socketQuery(int socket, int query_type,char* param_1, int &param_2);
         int socketCreate(bool tcp, int port);
-        int socketConfigureSecurity();
+        int socketConfigureSecurity(int socket, bool enabled, int profile);
         int socketSetSecurityProfile();
         int socketConnect(int socket, char* address, int port);
         int socketClose(int socket, bool async);
         int socketWriteTCP(int socket, char* buffer);
         int socketWriteTCP(int socket, String &buffer);
         int socketReadTCP(int socket, char* return_buffer, size_t size);
-
+        int setHexMode(bool hex);
         bool waitForBytePrompt(unsigned long timeout);
         CommandErrorEnum last_error = CE_TIMEOUT;
     private:

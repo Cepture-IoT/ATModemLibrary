@@ -203,7 +203,7 @@ int ModemClient::socketClose(int socket, bool async){
     _buffer = "";
     snprintf(command,50, "AT+USOCL=%d",socket);
 
-    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);
+    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 1000);
     if(val == -1){
         return -1;
     }
@@ -239,7 +239,7 @@ int ModemClient::socketWriteTCP(int socket, char* buffer){
     size_t buffer_length = strlen(buffer);
     //char command[16+SOCKET_WRITE_MAX_SIZE];
     String command;
-    command.reserve(19);//+(buffer_length < SOCKET_WRITE_MAX_SIZE ? buffer_length : SOCKET_WRITE_MAX_SIZE));
+    command.reserve(19+(buffer_length < SOCKET_WRITE_MAX_SIZE ? buffer_length : SOCKET_WRITE_MAX_SIZE)*2);
 
     int written = 0;
     //split buffer into chunks, mostly stolen from NBMKR
@@ -254,23 +254,24 @@ int ModemClient::socketWriteTCP(int socket, char* buffer){
         command += socket;
         command += ",";
         command += (uint16_t)chunkSize;
-        // command += ",\"";
-        modem->send(command);
-        if(!waitForBytePrompt(PROMP_TIMEOUT)){
-            return -written;
+        command += ",\"";
+
+        for (size_t i = 0; i < chunkSize; i++) {
+        byte b = buffer[i + written];
+
+        byte n1 = (b >> 4) & 0x0f;
+        byte n2 = (b & 0x0f);
+
+        command += (char)(n1 > 9 ? 'A' + n1 - 10 : '0' + n1);
+        command += (char)(n2 > 9 ? 'A' + n2 - 10 : '0' + n2);
         }
-        //says to wait for atleast 50ms before sending data
-        delay(50);
-        //write the chunkSize worth of bytes after the currently written number
-        modem->write((uint8_t*)buffer[written],chunkSize);
-        _buffer = "";
-        //check if an OK is returned (may make it check the number of bytes that were recieved)
-        int val = commandSmartRead(_buffer,10,COMMAND_TIMEOUT,true);
+
+        command += "\"";
+
+        int val = commandSmartSend((char*)command.c_str(),_buffer,10,COMMAND_TIMEOUT,true);
         if(val == -1){
             return -written;
         }
-
-
         written += chunkSize;
         buffer_length -= chunkSize;
     }
@@ -287,10 +288,12 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     //limit the max number of bytes to the max read size
     snprintf(command,SOCKET_READ_MAX_SIZE, "AT+USORD=%d,%d",socket, size > SOCKET_READ_MAX_SIZE ? SOCKET_READ_MAX_SIZE : size);
 
+
     int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);
     if(val == -1){
         return -1;
     }
+    
     int URC_start = _buffer.lastIndexOf("+USORD:");
     String reply_section = _buffer.substring(URC_start);
     int bytes = 0;
@@ -298,21 +301,58 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     int sscanf_result = sscanf(reply_section.c_str(),"+USORD: %*d, %d",&bytes);
 
     //if sscanf finds less than 2 value
-    if(sscanf_result < 2){
+    if(sscanf_result < 1){
         //expected reply value doesnt exists
         last_error = CE_REPLY_VALUE_INVALID;
         return -1;
     }
     //find where the bytes start
-    int bytes_start = reply_section.indexOf("\"");
+    int bytes_start = reply_section.indexOf("\"")+1;
     const char* c_str_pointer = reply_section.c_str();
     //copy the bytes from the reply section string to the return buffer up to the number of bytes sent
     for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
-        return_buffer[byte_ind] = c_str_pointer[bytes_start+byte_ind];
+        // return_buffer[byte_ind] = c_str_pointer[bytes_start+byte_ind];
+        byte n1 = c_str_pointer[byte_ind * 2+bytes_start];
+        byte n2 = c_str_pointer[byte_ind * 2 + 1+bytes_start];
+
+        if (n1 > '9') {
+            n1 = (n1 - 'A') + 10;
+        } else {
+            n1 = (n1 - '0');
+        }
+
+        if (n2 > '9') {
+            n2 = (n2 - 'A') + 10;
+        } else {
+            n2 = (n2 - '0');
+        }
+        return_buffer[byte_ind] = (n1 << 4) | n2;
     }
     // Serial.print("SCAN ");
     // Serial.println(sscanf_result);
 
 
     return bytes;
+}
+int ModemClient::setHexMode(bool hex){
+    char command[50];
+    _buffer = "";
+    snprintf(command,50, "AT+UDCONF=1,%d",hex);
+
+    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);
+    if(val == -1){
+        return -1;
+    }
+    return 1;
+}
+int ModemClient::socketConfigureSecurity(int socket, bool enabled, int profile){
+    char command[50];
+    _buffer = "";
+    snprintf(command,50, "AT+USOSEC=%d, %d, %d",socket, enabled, profile);
+
+    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 1000);
+    if(val == -1){
+        return -1;
+    }
+    return 1;
 }
