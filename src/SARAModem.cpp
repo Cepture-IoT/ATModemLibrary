@@ -41,12 +41,12 @@ ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long tim
     while(sara_serial->available()){
         char c = sara_serial->read();
         read_buffer += c;
+
+        //if newline or carriage return then a message has ended
+        if(c == '\n'){
             Serial.print(result);
             Serial.print(" ");
             Serial.println(read_buffer);
-        //if newline or carriage return then a message has ended
-        if(c == '\n'){
-
             //check if echo
             responseResultIndex = read_buffer.lastIndexOf("AT");
             if(responseResultIndex != -1){

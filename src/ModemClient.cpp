@@ -4,40 +4,96 @@ ModemClient::ModemClient(SARAModem &modem, int buffer_size){
     this->modem = &modem;
     _buffer.reserve(buffer_size);
 }
-
-size_t ModemClient::write(uint8_t){
-
+bool ModemClient::setSocket(int socket){
+    char param_1[10];
+    int param_2;
+    _buffer = "";
+    int val = socketQuery(socket, SQUERY_TYPE,param_1, param_2);
+    if(val == -1){
+        return false;
+    }
+    _current_socket = socket;
+    return true;
+}
+size_t ModemClient::write(uint8_t c){
+    char tmp[] = "0";
+    tmp[0] = (char)c;
+    int ret_val = socketWriteTCP(_current_socket,(char*)tmp,(size_t)1);
+    if(ret_val < 0){
+        return -ret_val;
+    }else{
+        return ret_val;
+    }
 }
 size_t ModemClient::write(const uint8_t* buf, size_t size){
 
+    int ret_val = socketWriteTCP(_current_socket,(char*) buf,(size_t)size);
+    if(ret_val < 0){
+        return -ret_val;
+    }else{
+        return ret_val;
+    }
 }
 
 int ModemClient::available(){
-
+    char tmp[10];
+    int val = socketReadTCP(_current_socket, tmp, 0);
+    if(val == -1){
+        return 0;
+    }
+    return val;
 }
 int ModemClient::read(){
-
+    uint8_t buffer[1];
+    int val = read(buffer,1);
+    if(val == -1){
+        return -1;
+    }else
+    {
+        return (int)buffer[0];
+    }
+    
 }
 int ModemClient::read(uint8_t *buf, size_t size){
-
+    int val = socketReadTCP(_current_socket, (char*)buf, size);
+    return val;
 }
 int ModemClient::peek(){
-
+    return -1;
 }
 void ModemClient::flush(){
 
 }
 int ModemClient::connect(IPAddress ip, uint16_t port){
-
+    char host[17] = "255.255.255.255\0";
+    snprintf(host,17,"%d.%d.%d.%d",ip[0],ip[1],ip[2],ip[3]);
+    return connect((const char*)host,port);
 }
 int ModemClient::connect(const char *host, uint16_t port){
-
+    int val = socketConnect(_current_socket, host, port);
+    if(val < 0){
+        return 0;
+    }
+    return val;
 }
 void ModemClient::stop(){
-
+    int val = socketClose(_current_socket, false);
+    _current_socket = -1;
 }
 uint8_t ModemClient::connected(){
-
+    char tmp[10];
+    int tmp2;
+    int val = socketQuery(_current_socket,SQUERY_TCP_STATUS, tmp, tmp2);
+    //reuse tmp2 
+    int status;
+    tmp2 = sscanf(tmp,"%d",&status);
+    if(tmp2 != 1){
+        return false;
+    }
+    if(status != TCPSTATUS_ESTABLISHED){
+        return false;
+    }
+    return true;
 }
 ModemClient::operator bool(){
 
@@ -149,7 +205,7 @@ int ModemClient::socketCreate(bool use_tcp, int port){
     }
 
     int URC_start = _buffer.lastIndexOf("+USOCR:");
-    Serial.println("HERE");
+    Serial.println("");
     Serial.println(_buffer);
     Serial.println(URC_start);
     Serial.println("HERE2");
@@ -203,7 +259,7 @@ int ModemClient::socketClose(int socket, bool async){
     _buffer = "";
     snprintf(command,50, "AT+USOCL=%d",socket);
 
-    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 1000);
+    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 10000);
     if(val == -1){
         return -1;
     }
@@ -223,7 +279,7 @@ int ModemClient::socketClose(int socket, bool async){
     // }
     // return sscanf_result;
 }
-int ModemClient::socketConnect(int socket, char* address, int port){
+int ModemClient::socketConnect(int socket, const char* address, int port){
     char command[50];
     _buffer = "";
     snprintf(command,50, "AT+USOCO=%d,\"%s\",%d",socket, address, port);
@@ -235,8 +291,7 @@ int ModemClient::socketConnect(int socket, char* address, int port){
     return 1;
 }
 
-int ModemClient::socketWriteTCP(int socket, char* buffer){
-    size_t buffer_length = strlen(buffer);
+int ModemClient::socketWriteTCP(int socket, const char* buffer, size_t buffer_length){
     //char command[16+SOCKET_WRITE_MAX_SIZE];
     String command;
     command.reserve(19+(buffer_length < SOCKET_WRITE_MAX_SIZE ? buffer_length : SOCKET_WRITE_MAX_SIZE)*2);
@@ -278,7 +333,7 @@ int ModemClient::socketWriteTCP(int socket, char* buffer){
     return written;
 }
 int ModemClient::socketWriteTCP(int socket, String &buffer){
-    return socketWriteTCP(socket, (char*)buffer.c_str());
+    return socketWriteTCP(socket, (char*)buffer.c_str(),buffer.length());
 }
 
 int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
@@ -308,25 +363,27 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     }
     //find where the bytes start
     int bytes_start = reply_section.indexOf("\"")+1;
-    const char* c_str_pointer = reply_section.c_str();
-    //copy the bytes from the reply section string to the return buffer up to the number of bytes sent
-    for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
-        // return_buffer[byte_ind] = c_str_pointer[bytes_start+byte_ind];
-        byte n1 = c_str_pointer[byte_ind * 2+bytes_start];
-        byte n2 = c_str_pointer[byte_ind * 2 + 1+bytes_start];
+    if(bytes_start != 0){
+        const char* c_str_pointer = reply_section.c_str();
+        //copy the bytes from the reply section string to the return buffer up to the number of bytes sent
+        for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
+            // return_buffer[byte_ind] = c_str_pointer[bytes_start+byte_ind];
+            byte n1 = c_str_pointer[byte_ind * 2+bytes_start];
+            byte n2 = c_str_pointer[byte_ind * 2 + 1+bytes_start];
 
-        if (n1 > '9') {
-            n1 = (n1 - 'A') + 10;
-        } else {
-            n1 = (n1 - '0');
-        }
+            if (n1 > '9') {
+                n1 = (n1 - 'A') + 10;
+            } else {
+                n1 = (n1 - '0');
+            }
 
-        if (n2 > '9') {
-            n2 = (n2 - 'A') + 10;
-        } else {
-            n2 = (n2 - '0');
+            if (n2 > '9') {
+                n2 = (n2 - 'A') + 10;
+            } else {
+                n2 = (n2 - '0');
+            }
+            return_buffer[byte_ind] = (n1 << 4) | n2;
         }
-        return_buffer[byte_ind] = (n1 << 4) | n2;
     }
     // Serial.print("SCAN ");
     // Serial.println(sscanf_result);
@@ -355,4 +412,92 @@ int ModemClient::socketConfigureSecurity(int socket, bool enabled, int profile){
         return -1;
     }
     return 1;
+}
+int ModemClient::socketSetSecurityProfile(int profile, int op_code){
+    return -1;
+}
+// int setOperator(int mode, int format, char* operator){
+
+// }
+int ModemClient::getOperator(char* buffer){
+    // char command[50];
+    _buffer = "";
+    // snprintf(command,50, "AT+COPS=%d,%d",socket, query_type);
+
+    int val = commandSmartSend("AT+COPS?",_buffer,10,COMMAND_TIMEOUT ,true);
+    if(val == -1){
+        return -1;
+    }
+    int URC_start = _buffer.lastIndexOf("+COPS:");
+    String reply_section = _buffer.substring(URC_start);
+
+    int sscanf_result = sscanf(reply_section.c_str(),"+COPS: %*d, %*d, %s",buffer);
+    // Serial.print("SCAN ");
+    // Serial.println(sscanf_result);
+
+    //if sscanf finds less than 1 value
+    if(sscanf_result < 1){
+        //expected reply value doesnt exists
+        last_error = CE_REPLY_VALUE_INVALID;
+        return -1;
+    }
+    return sscanf_result;
+}
+int ModemClient::attachDetatchGPRS(bool attach){
+    char command[50];
+    _buffer = "";
+    snprintf(command,50, "AT+CGATT=%d",attach);
+
+    int val = commandSmartSend(command,_buffer,10,100, true,100);
+    if(val == -1){
+        return -1;
+    }
+    return 1;
+}
+int ModemClient::getGPRSRegistrationStatus(){
+// char command[50];
+    _buffer = "";
+    // snprintf(command,50, "AT+COPS=%d,%d",socket, query_type);
+
+    int val = commandSmartSend("AT+CGATT?",_buffer,10,COMMAND_TIMEOUT ,true);
+    if(val == -1){
+        return -1;
+    }
+    int URC_start = _buffer.lastIndexOf("+CGATT:");
+    String reply_section = _buffer.substring(URC_start);
+    int ret_val = 0;
+    int sscanf_result = sscanf(reply_section.c_str(),"+CGATT: %d",&ret_val);
+    // Serial.print("SCAN ");
+    // Serial.println(sscanf_result);
+
+    //if sscanf finds less than 1 value
+    if(sscanf_result < 1){
+        //expected reply value doesnt exists
+        last_error = CE_REPLY_VALUE_INVALID;
+        return -1;
+    }
+    return ret_val;
+}
+int ModemClient::getNetworkRegistrationStatus(){
+    _buffer = "";
+    // snprintf(command,50, "AT+COPS=%d,%d",socket, query_type);
+
+    int val = commandSmartSend("AT+CEREG?",_buffer,10,COMMAND_TIMEOUT ,true);
+    if(val == -1){
+        return -1;
+    }
+    int URC_start = _buffer.lastIndexOf("+CEREG:");
+    String reply_section = _buffer.substring(URC_start);
+    int ret_val = -1;
+    int sscanf_result = sscanf(reply_section.c_str(),"+CEREG: %*d, %d",&ret_val);
+    // Serial.print("SCAN ");
+    // Serial.println(sscanf_result);
+
+    //if sscanf finds less than 1 value
+    if(sscanf_result < 1){
+        //expected reply value doesnt exists
+        last_error = CE_REPLY_VALUE_INVALID;
+        return -1;
+    }
+    return ret_val;
 }

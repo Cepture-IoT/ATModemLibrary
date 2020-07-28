@@ -58,10 +58,49 @@ enum SocketQueryTypeEnum{
     SQUERY_TCP_STATUS = 10,
     SQUERY_TCP_UNACKNOWLEDGED = 11
 };
+enum SocketQueryTCPStatusEnum{
+    TCPSTATUS_LISTEN = 1,
+    TCPSTATUS_SYN_SENT = 2,
+    TCPSTATUS_SYN_RECV = 3,
+    TCPSTATUS_ESTABLISHED = 4,
+    TCPSTATUS_FIN_WAIT_1 = 5,
+    TCPSTATUS_FIN_WAIT_2 = 6,
+    TCPSTATUS_CLOSE_WAIT = 7,
+    TCPSTATUS_CLOSING = 8,
+    TCPSTATUS_LAST_ACK = 9,
+    TCPSTATUS_TIME_WAIT = 10
+};
+enum SocketSecurityOpCodesEnum{
+    OPC_CERTIFICATE_LEVEL = 0,
+    OPC_SSL_TLS_DTLS_VERSION = 1,
+    OPC_CIPHER_SUITE = 2,
+    OPC_TRUST_ROOT_CERT_NAME = 3,
+    OPC_EXPECTED_SERVER_HOST_NAME = 4,
+    OPC_CLIENT_CERT_INT_NAME = 5,
+    OPC_CLIENT_PRIV_KEY_INT_NAME = 6,
+    OPC_CLIENT_PRIV_KEY_PASSWRD = 7,
+    OPC_PRE_SHARED_KEY = 8,
+    OPC_PRE_SHARED_KEY_IDENTITY = 9,
+    OPC_SERVER_NAME_ID = 10,
+    OPC_PSK_KEY_ID = 11,
+    OPC_SERVER_CERT_PIN = 12,
+    OPC_TLS_SESS_RESUPTION = 13
+};
+enum NetworkStatusEnum{
+    NETSTAT_NOT_REGISTERED = 0,
+    NETSTAT_REGISTERED_HOME = 1,
+    NETSTAT_SEARCHING = 2,
+    NETSTAT_DENIED = 3,
+    NETSTAT_UNKNOWN = 4,
+    NETSTAT_REGISTERED_ROAMING = 5,
+    NETSTAT_EMERGENCY_ONLY = 8
+};
+
 class ModemClient : public Client {
     public:
         ModemClient(SARAModem &modem, int buffer_size);
 
+        bool setSocket(int socket);
         size_t write(uint8_t);
         size_t write(const uint8_t* buf, size_t size);
 
@@ -78,9 +117,10 @@ class ModemClient : public Client {
 
 //AT COMMANDS
         int setOperator();
+        int getOperator(char* buffer);
         int setRadioAccessTechnology();
         int setModuleFunctionality();
-        int attachDetatchGPRS();
+        int attachDetatchGPRS(bool attach);
         int activateDeactivatePDPContext();
         int setPDPContext();
         int getPDPAddress();
@@ -99,10 +139,10 @@ class ModemClient : public Client {
         int socketQuery(int socket, int query_type,char* param_1, int &param_2);
         int socketCreate(bool tcp, int port);
         int socketConfigureSecurity(int socket, bool enabled, int profile);
-        int socketSetSecurityProfile();
-        int socketConnect(int socket, char* address, int port);
+        int socketSetSecurityProfile(int profile, int op_code);
+        int socketConnect(int socket, const char* address, int port);
         int socketClose(int socket, bool async);
-        int socketWriteTCP(int socket, char* buffer);
+        int socketWriteTCP(int socket, const char* buffer, size_t length);
         int socketWriteTCP(int socket, String &buffer);
         int socketReadTCP(int socket, char* return_buffer, size_t size);
         int setHexMode(bool hex);
@@ -113,6 +153,8 @@ class ModemClient : public Client {
         int commandSmartRead(String &buffer,int attempts, int timeout, bool wait);
         SARAModem* modem;
         String _buffer;
+        int _current_socket;
+        int peek_char = -1;
         
 };
 #endif
