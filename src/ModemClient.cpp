@@ -62,6 +62,11 @@ int ModemClient::peek(){
     return -1;
 }
 void ModemClient::flush(){
+    int read_num = -1;
+    char buf[128];
+    while(read_num > 0){
+        read_num = socketReadTCP(_current_socket,buf,128);
+    }
 
 }
 int ModemClient::connect(IPAddress ip, uint16_t port){
@@ -205,10 +210,10 @@ int ModemClient::socketCreate(bool use_tcp, int port){
     }
 
     int URC_start = _buffer.lastIndexOf("+USOCR:");
-    Serial.println("");
-    Serial.println(_buffer);
-    Serial.println(URC_start);
-    Serial.println("HERE2");
+    // Serial.println("");
+    // Serial.println(_buffer);
+    // Serial.println(URC_start);
+    // Serial.println("HERE2");
     //check if expected reply exists
     if(URC_start == -1){
         //reply not found
@@ -219,8 +224,8 @@ int ModemClient::socketCreate(bool use_tcp, int port){
     int socket = -1;
 //    return 0;
     int sscanf_result = sscanf(reply_section.c_str(),"+USOCR: %d",&socket);
-     Serial.print("SCAN ");
-     Serial.println(sscanf_result);
+    //  Serial.print("SCAN ");
+    //  Serial.println(sscanf_result);
 
     //if sscanf finds nothing or socket is out of range
     if(sscanf_result != 1 || socket < SOCKET_MIN || socket > SOCKET_MAX){
@@ -254,10 +259,11 @@ int ModemClient::socketQuery(int socket, int query_type,char* param_1, int &para
     }
     return sscanf_result;
 }
+
 int ModemClient::socketClose(int socket, bool async){
     char command[50];
     _buffer = "";
-    snprintf(command,50, "AT+USOCL=%d",socket);
+    snprintf(command,50, "AT+USOCL=%d,%d",socket,async);
 
     int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 10000);
     if(val == -1){
@@ -500,4 +506,7 @@ int ModemClient::getNetworkRegistrationStatus(){
         return -1;
     }
     return ret_val;
+}
+int ModemClient::moduleOff(){
+    return 0;
 }

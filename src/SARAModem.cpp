@@ -29,9 +29,11 @@ void SARAModem::on(){
 ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
     int responseResultIndex = -1;
     unsigned long start_time = millis();
+    // Serial.println("############################");
     //wait for response if told too
     while(wait_for_response && !sara_serial->available()){
         if(millis()-start_time >= timeout){
+            // Serial.println("TIMEOUT");
             return READ_TIMEOUT;
         }
     };
@@ -44,9 +46,9 @@ ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long tim
 
         //if newline or carriage return then a message has ended
         if(c == '\n'){
-            Serial.print(result);
-            Serial.print(" ");
-            Serial.println(read_buffer);
+            // Serial.print(result);
+            // Serial.print(" ");
+            // Serial.println(read_buffer);
             //check if echo
             responseResultIndex = read_buffer.lastIndexOf("AT");
             if(responseResultIndex != -1){
