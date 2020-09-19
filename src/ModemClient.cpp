@@ -1,5 +1,6 @@
 #include "ModemClient.h"
-
+#define __XSI_VISIBLE 1
+#include <time.h>
 ModemClient::ModemClient(SARAModem &modem, int buffer_size){
     this->modem = &modem;
     _buffer.reserve(buffer_size);
@@ -82,7 +83,7 @@ int ModemClient::connect(const char *host, uint16_t port){
     return val;
 }
 void ModemClient::stop(){
-    int val = socketClose(_current_socket, false);
+    int val = socketClose(_current_socket, true);
     _current_socket = -1;
 }
 uint8_t ModemClient::connected(){
@@ -103,6 +104,7 @@ uint8_t ModemClient::connected(){
 ModemClient::operator bool(){
 
 }
+
 int ModemClient::commandSmartSend(char *command, String &buffer,int attempts, int timeout, bool wait, unsigned long lag_timeout){
     int attempt = 0;
    
@@ -465,7 +467,9 @@ int ModemClient::getGPRSRegistrationStatus(){
     _buffer = "";
     // snprintf(command,50, "AT+COPS=%d,%d",socket, query_type);
 
-    int val = commandSmartSend("AT+CGATT?",_buffer,10,COMMAND_TIMEOUT ,true);
+    // int val = commandSmartSend("AT+CGATT?",_buffer,10,10000 ,true);
+    int val = commandSmartSend("AT+CGDCONT?",_buffer,10,10000 ,true);
+
     if(val == -1){
         return -1;
     }
@@ -474,7 +478,8 @@ int ModemClient::getGPRSRegistrationStatus(){
     int ret_val = 0;
     int sscanf_result = sscanf(reply_section.c_str(),"+CGATT: %d",&ret_val);
     // Serial.print("SCAN ");
-    // Serial.println(sscanf_result);
+    // Serial.println(_buffer);
+    // Serial.println(val);
 
     //if sscanf finds less than 1 value
     if(sscanf_result < 1){
@@ -508,5 +513,62 @@ int ModemClient::getNetworkRegistrationStatus(){
     return ret_val;
 }
 int ModemClient::moduleOff(){
-    return 0;
+    _buffer = "";
+    // snprintf(command,50, "AT+COPS=%d,%d",socket, query_type);
+
+    int val = commandSmartSend("AT+CPWROFF",_buffer,10,40000 ,true);
+    if(val == -1){
+        return -1;
+    }
+    return val;
+}
+int ModemClient::shutdown(){
+    int val = moduleOff();
+    if(val != -1){
+        modem->off();
+    }
+    return val;
+}
+int ModemClient::getTime(time_t &time,bool local){
+    _buffer = "";
+    // snprintf(command,50, "AT+COPS=%d,%d",socket, query_type);
+
+    int val = commandSmartSend("AT+CCLK?",_buffer,10,1001 ,true);
+    if(val == -1){
+        return -1;
+    }
+
+    struct tm now;
+    // struct tm tmp;
+    // int dashIndex = _buffer.lastIndexOf('-');
+    // if (dashIndex != -1) {
+    // response.remove(dashIndex);
+    // }
+    // Serial.println(response);
+    int URC_start = _buffer.lastIndexOf("+CCLK:");
+    String reply_section = _buffer.substring(URC_start);
+    int ret_val = 0;
+    Serial.println(_buffer);
+    if (strptime(reply_section.c_str(), "+CCLK: \"%y/%m/%d,%H:%M:%S", &now) != NULL) {
+        // adjust for timezone offset which is +/- in 15 minute increments
+
+        time = mktime(&now);
+        // tmp = *gmtime(&time);
+//        Serial.println((long)mktime(&tmp));
+//        Serial.println(tmp.tm_year);
+        time_t delta = ((reply_section.charAt(26) - '0') * 10 + (reply_section.charAt(27) - '0')) * (15 * 60);
+//        Serial.println(time);
+//        Serial.println(delta);
+        if(local){
+            if (reply_section.charAt(25) == '-') {
+                time -= delta;
+            } else if (reply_section.charAt(25) == '+') {
+                time += delta;
+            }
+        }
+        return 1;
+    }
+    //expected reply value doesnt exists
+    last_error = CE_REPLY_VALUE_INVALID;
+    return -1;
 }

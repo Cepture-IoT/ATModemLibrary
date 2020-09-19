@@ -18,14 +18,21 @@ void SARAModem::on(){
     // enable the POW_ON pin
     pinMode(power_pin, OUTPUT);
     digitalWrite(power_pin, HIGH);
-
-    // reset the ublox module
-    pinMode(reset_pin, OUTPUT);
-    digitalWrite(reset_pin, HIGH);
-    delay(100);
+    //reset pin shouldnt be used using this
     digitalWrite(reset_pin, LOW);
+    // // reset the ublox module
+    // pinMode(reset_pin, OUTPUT);
+    // digitalWrite(reset_pin, HIGH);
+    // delay(100);
+    // digitalWrite(reset_pin, LOW);
 }
+void SARAModem::off(){
+    sara_serial->end();
+    // digitalWrite(reset_pin, HIGH);
 
+    // power off module
+    digitalWrite(power_pin, LOW);
+}
 ReadResponseResultEnum SARAModem::readResponse(String &buffer, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
     int responseResultIndex = -1;
     unsigned long start_time = millis();

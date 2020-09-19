@@ -101,6 +101,7 @@ class ModemClient : public Client {
         ModemClient(SARAModem &modem, int buffer_size);
 
         bool setSocket(int socket);
+        int shutdown();
         size_t write(uint8_t);
         size_t write(const uint8_t* buf, size_t size);
 
@@ -116,25 +117,25 @@ class ModemClient : public Client {
         operator bool();
 
 //AT COMMANDS
-        int setOperator();
+        //int setOperator();
         int getOperator(char* buffer);
-        int setRadioAccessTechnology();
-        int setModuleFunctionality();
+        //int setRadioAccessTechnology();
+        //int setModuleFunctionality();
         int attachDetatchGPRS(bool attach);
-        int activateDeactivatePDPContext();
-        int setPDPContext();
-        int getPDPAddress();
+        //int activateDeactivatePDPContext();
+        //int setPDPContext();
+        //int getPDPAddress();
         int getGPRSRegistrationStatus();
         int getNetworkRegistrationStatus();
         int moduleOff();
-        int configureCMEErrorFormat();
-        int enterPin();
-        int setMessageFormat();
-        int tuneNBIoTBandScanning();
-        int configureAutoTimezoneUpdate();
-        int setAuthenticationParameters();
-        int getCardIdentifier();
-        int getTime();
+        //int configureCMEErrorFormat();
+        //int enterPin();
+        //int setMessageFormat();
+        //int tuneNBIoTBandScanning();
+        //int configureAutoTimezoneUpdate();
+        //int setAuthenticationParameters();
+        //int getCardIdentifier();
+        int getTime(time_t &time,bool local);
         //sockets
         int socketQuery(int socket, int query_type,char* param_1, int &param_2);
         int socketCreate(bool tcp, int port);
