@@ -36,7 +36,7 @@ size_t ModemClient::write(const uint8_t* buf, size_t size){
 }
 
 int ModemClient::available(){
-    int val = socketReadTCP(_current_socket, _buffer, MCLIENT_BUFFER_SIZE);
+    int val = socketReadTCP(_current_socket, _buffer, 0);
     if(val == -1){
         return 0;
     }
@@ -340,15 +340,25 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     char* reply_p = _buffer + URC_start;
     int bytes;
     int sscanf_result = sscanf(reply_p,"+USORD: %*d, %d",&bytes);
+    
+    //int sscanf_result = sscanf(reply_p,"+USORD: %d",&bytes);
+
     //if sscanf finds nothing
     if(sscanf_result < 1){
         //expected reply value doesnt exists
         last_error = CE_REPLY_VALUE_INVALID;
         return -1;
     }
-    
-    //find where the bytes start
     char* bytes_start = strstr(reply_p,"\"")+1;
+    // if(bytes > 0){
+    //     Serial.println(_buffer);
+    //     //find where the bytes start
+        
+    //     Serial.println("---------------");
+    //     Serial.println(reply_p);
+    //     Serial.println("---------------");
+    //     Serial.println(bytes_start);
+    // }
     //copy the bytes from the reply section string to the return buffer up to the number of bytes sent
     //TODO: Make it that the thing wont read past the buffer size even though i dont think this will occur
     for(int byte_ind = 0; byte_ind < bytes; byte_ind++){
@@ -369,7 +379,13 @@ int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
         }
         return_buffer[byte_ind] = (n1 << 4) | n2;
     }
-
+    // return_buffer[bytes] = '\0';
+    // Serial.print("RP: ");
+    // Serial.println(size);
+    // for(int i = 0; i < bytes;i++){
+    //     Serial.println((int)(return_buffer[i]));
+    // }
+    // Serial.println("END");
 
     return bytes;
 }

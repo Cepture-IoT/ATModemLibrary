@@ -78,10 +78,13 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeo
         
         //if newline or carriage return then a message has ended
         if(c == '\n'){
+            read_buffer[read_buffer_ind+1] = '\0';
+            // Serial.println("###########");
             // Serial.print(result);
             // Serial.print(" ");
             // Serial.println(read_buffer);
-            read_buffer[read_buffer_ind+1] = '\0';
+            // Serial.println(read_buffer_ind);
+            
             //check if echo
             //responseResultIndex = read_buffer.lastIndexOf("AT");
             responseResultIndex = lastStrStr(read_buffer,"AT");
@@ -181,7 +184,7 @@ void SARAModem::send(const char* command)
 //   if(delta < MODEM_MIN_RESPONSE_OR_URC_WAIT_TIME_MS) {
 //     delay(MODEM_MIN_RESPONSE_OR_URC_WAIT_TIME_MS - delta);
 //   }
-
+    // Serial.println(command);
   sara_serial->println(command);
   sara_serial->flush();
 }
