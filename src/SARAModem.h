@@ -6,16 +6,20 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#define MODEM_BUFFER_SIZE 1024
 enum ReadResponseResultEnum {
     READ_TIMEOUT,
     READ_OK,
     READ_ERROR,
     READ_NO_CARRIER,
-    READ_CME_ERROR
+    READ_CME_ERROR,
+    READ_BUFFER_TOO_SMALL
 };
 enum BeginResultEnum{
     BEGIN_SUCCESS
 };
+size_t lastStrStr(char* base_str, char* in_str);
+size_t lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len);
 class SARAModem{
     public:
         SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo);
@@ -41,6 +45,7 @@ class SARAModem{
         int power_pin;
         int reset_pin;
 
-        String read_buffer;
+        //String read_buffer;
+        char read_buffer[MODEM_BUFFER_SIZE];
 };
 #endif
