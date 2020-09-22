@@ -39,6 +39,7 @@
 #define SOCKET_READ_MAX_SIZE 512
 #define COMMAND_TIMEOUT 200
 #define PROMP_TIMEOUT 2000
+#define MCLIENT_BUFFER_SIZE 1024+64
 enum CommandErrorEnum{
     CE_TIMEOUT,
     CE_ERROR,
@@ -98,7 +99,7 @@ enum NetworkStatusEnum{
 
 class ModemClient : public Client {
     public:
-        ModemClient(SARAModem &modem, int buffer_size);
+        ModemClient(SARAModem &modem);
 
         bool setSocket(int socket);
         int shutdown();
@@ -144,16 +145,17 @@ class ModemClient : public Client {
         int socketConnect(int socket, const char* address, int port);
         int socketClose(int socket, bool async);
         int socketWriteTCP(int socket, const char* buffer, size_t length);
-        int socketWriteTCP(int socket, String &buffer);
+        int socketWriteTCP(int socket, char* buffer);
         int socketReadTCP(int socket, char* return_buffer, size_t size);
         int setHexMode(bool hex);
         bool waitForBytePrompt(unsigned long timeout);
         CommandErrorEnum last_error = CE_TIMEOUT;
     private:
-        int commandSmartSend(char *command, String &buffer, int attempts, int timeout, bool wait, unsigned long lag_timeout = 50);
-        int commandSmartRead(String &buffer,int attempts, int timeout, bool wait);
+        int commandSmartSend(char *command, char* buffer, int attempts, int timeout, bool wait, unsigned long lag_timeout = 50);
+        int commandSmartRead(char* buffer,int attempts, int timeout, bool wait);
         SARAModem* modem;
-        String _buffer;
+        char _buffer[MCLIENT_BUFFER_SIZE];
+        char command[MCLIENT_BUFFER_SIZE];
         int _current_socket;
         int peek_char = -1;
         

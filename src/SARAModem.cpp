@@ -1,23 +1,16 @@
 #include "SARAModem.h"
 
-size_t lastStrStr(char* base_str, char* in_str){
+int lastStrStr(char* base_str, char* in_str){
     return lastStrStr(base_str,strlen(base_str),in_str,strlen(in_str));
 }
-for (char *p = buffer; p <= buffer + fromIndex; p++) {
-    p = strstr(p, s2.buffer);
-    if (!p) break;
-    if ((unsigned int)(p - buffer) <= fromIndex) found = p - buffer;
-}
-size_t lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len){
+
+int lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len){
     int cur_loc = base_len - in_len;
     if(cur_loc < 0) return -1;
-    for(int loc = cur_loc; loc >=0 ; loc--){
-        char* tmp_c = base_str+loc;
-        char* tmp_r = strstr(tmp_c,in_str);
-        if(tmp_r == tmp_c){
-            return loc;
+    for(char* c = base_str+cur_loc; c >= base_str ; c--){
+        if(c == strstr(c,in_str)){
+            return c-base_str;
         }
-
     }
     return -1;
 }
@@ -56,7 +49,7 @@ void SARAModem::off(){
     // power off module
     digitalWrite(power_pin, LOW);
 }
-ReadResponseResultEnum SARAModem::readResponse(char &buffer,size_t buf_length, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
+ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
     int responseResultIndex = -1;
     unsigned long start_time = millis();
     // Serial.println("############################");
@@ -78,7 +71,7 @@ ReadResponseResultEnum SARAModem::readResponse(char &buffer,size_t buf_length, u
         read_buffer[read_buffer_ind] = c;
         //dont let the buffer index grow larger than the buffer
         read_buffer_ind++;
-        if(read_buffer_ind >= buf_length-1){
+        if(read_buffer_ind >= MODEM_BUFFER_SIZE-1){
             exceeded = true;
             read_buffer_ind -= 1;
         }
@@ -88,47 +81,59 @@ ReadResponseResultEnum SARAModem::readResponse(char &buffer,size_t buf_length, u
             // Serial.print(result);
             // Serial.print(" ");
             // Serial.println(read_buffer);
+            read_buffer[read_buffer_ind+1] = '\0';
             //check if echo
-            responseResultIndex = read_buffer.lastIndexOf("AT");
+            //responseResultIndex = read_buffer.lastIndexOf("AT");
+            responseResultIndex = lastStrStr(read_buffer,"AT");
             if(responseResultIndex != -1){
                 //echo has occured so empty buffer
-                read_buffer = "";
+                read_buffer[0] = '\0';
+                read_buffer_ind = 0;
                 continue;
             }
             //check for special response
             //is it OK
-            responseResultIndex = read_buffer.lastIndexOf("OK");
+            //responseResultIndex = read_buffer.lastIndexOf("OK");
+            responseResultIndex = lastStrStr(read_buffer,"OK");
             if(responseResultIndex != -1){
                 result = READ_OK;
-                read_buffer = "";
+                read_buffer[0] = '\0';
+                read_buffer_ind = 0;
                 continue;
             }
             //is it CME error
-            responseResultIndex = read_buffer.lastIndexOf("CME ERROR");
+            //responseResultIndex = read_buffer.lastIndexOf("CME ERROR");
+            responseResultIndex = lastStrStr(read_buffer,"CME ERROR");
             if(responseResultIndex != -1){
                 result = READ_CME_ERROR;
-                read_buffer = "";
+                read_buffer[0] = '\0';
+                read_buffer_ind = 0;
                 continue;
             }
             //is it an error
-            responseResultIndex = read_buffer.lastIndexOf("ERROR");
+            //responseResultIndex = read_buffer.lastIndexOf("ERROR");
+            responseResultIndex = lastStrStr(read_buffer,"ERROR");
             if(responseResultIndex != -1){
                 result = READ_ERROR;
-                read_buffer = "";
+                read_buffer[0] = '\0';
+                read_buffer_ind = 0;
                 continue;
             }
             //is it no carrier
-            responseResultIndex = read_buffer.lastIndexOf("NO CARRIER");
+            //responseResultIndex = read_buffer.lastIndexOf("NO CARRIER");
+            responseResultIndex = lastStrStr(read_buffer,"NO CARRIER");
             if(responseResultIndex != -1){
                 result = READ_NO_CARRIER;
-                read_buffer = "";
+                read_buffer[0] = '\0';
+                read_buffer_ind = 0;
                 continue;
             }
 
             //add to buffer with new lines and stuff incase a second thing comes in
-            // Serial.println("END");
-            buffer += read_buffer;
-            read_buffer = "";
+            //TODO: Fix this somehow so it cant buffer overflow
+            strcat(buffer,read_buffer);
+            read_buffer[0] = '\0';
+            read_buffer_ind = 0;
         }
         //the board can read too fast for serial data to show up so wait for a period of time if no data is available incase its just lag
         start_time = millis();
@@ -136,7 +141,7 @@ ReadResponseResultEnum SARAModem::readResponse(char &buffer,size_t buf_length, u
             delay(10);
         }
     }
-    read_buffer[read_buffer_ind+1] = '\0';
+    
     if(exceeded){
         return READ_BUFFER_TOO_SMALL;
     }

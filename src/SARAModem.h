@@ -18,8 +18,8 @@ enum ReadResponseResultEnum {
 enum BeginResultEnum{
     BEGIN_SUCCESS
 };
-size_t lastStrStr(char* base_str, char* in_str);
-size_t lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len);
+int lastStrStr(char* base_str, char* in_str);
+int lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len);
 class SARAModem{
     public:
         SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo);
@@ -27,7 +27,7 @@ class SARAModem{
         void off();
         BeginResultEnum begin();
         //reads the response from the sara module, if echo detected skips echo, stores everything after echo other than the OK/ERROR/whatever at the end
-        ReadResponseResultEnum readResponse(String &response_buffer, unsigned long time_out, bool wait_for_response = false, unsigned long lag_timeout = 50);
+        ReadResponseResultEnum readResponse(char* response_buffer, unsigned long time_out, bool wait_for_response = false, unsigned long lag_timeout = 50);
         bool echo_enabled;
         
         size_t write(uint8_t c);
