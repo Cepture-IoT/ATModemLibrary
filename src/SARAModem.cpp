@@ -19,12 +19,12 @@ void SARAModem::on(){
     pinMode(power_pin, OUTPUT);
     digitalWrite(power_pin, HIGH);
     //reset pin shouldnt be used using this
-    digitalWrite(reset_pin, LOW);
-    // // reset the ublox module
-    // pinMode(reset_pin, OUTPUT);
-    // digitalWrite(reset_pin, HIGH);
-    // delay(100);
     // digitalWrite(reset_pin, LOW);
+    // reset the ublox module
+    pinMode(reset_pin, OUTPUT);
+    digitalWrite(reset_pin, HIGH);
+    delay(100);
+    digitalWrite(reset_pin, LOW);
 }
 void SARAModem::off(){
     sara_serial->end();
