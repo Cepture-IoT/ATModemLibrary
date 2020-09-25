@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#define READ_LAG_TIMEOUT 100
 #define MODEM_BUFFER_SIZE 1024
 #define USE_POWER_CTRL_PIN true
 #define POWER_CTRL_OFF_IS_LOW true

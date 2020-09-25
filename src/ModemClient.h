@@ -151,6 +151,9 @@ class ModemClient : public Client {
         int setHexMode(bool hex);
         bool waitForBytePrompt(unsigned long timeout);
         CommandErrorEnum last_error = CE_TIMEOUT;
+
+        int commandSmartSend(char *command, char* buffer, size_t size, int attempts, int timeout, bool wait);
+        int commandSmartSend(char *command, char* buffer, size_t size,int attempts, int timeout, bool wait);
     private:
         int commandSmartSend(char *command, char* buffer, int attempts, int timeout, bool wait);
         int commandSmartRead(char* buffer,int attempts, int timeout, bool wait);

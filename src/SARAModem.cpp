@@ -96,7 +96,7 @@ void SARAModem::off(){
         }
     #endif
 }
-ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t size, bool wait_for_response, unsigned long timeout){
+ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t _size, bool wait_for_response, unsigned long timeout){
     int responseResultIndex = -1;
     unsigned long start_time = millis();
     // Serial.println("############################");
@@ -182,8 +182,8 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t size, bool w
             }
 
             //add to buffer with new lines and stuff incase a second thing comes in
-            //TODO: Fix this somehow so it cant buffer overflow
-            strcat(buffer,read_buffer);
+            //TODO: Maybe fixed overflow writing
+            strncat(buffer,read_buffer,size-strlen(buffer));
             read_buffer[0] = '\0';
             read_buffer_ind = 0;
         }
@@ -198,7 +198,7 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t size, bool w
         }
         //the board can read too fast for serial data to show up so wait for a period of time if no data is available incase its just lag
         unsigned long lag_start = millis();
-        while(!sara_serial->available() && millis() - lag_start <= 100){
+        while(!sara_serial->available() && millis() - lag_start <= READ_LAG_TIMEOUT){
             delay(10);
         }
     }
