@@ -63,7 +63,7 @@ int ModemClient::peek(){
 void ModemClient::flush(){
     int read_num = -1;
     while(read_num > 0){
-        read_num = socketReadTCP(_current_socket,_buffer,MCLIENT_BUFFER_SIZE);
+        read_num = socketReadTCP(_current_socket,_buffer,MCLIENT_READ_BUFFER_SIZE);
     }
 
 }
@@ -101,13 +101,15 @@ uint8_t ModemClient::connected(){
 ModemClient::operator bool(){
 
 }
-
-int ModemClient::commandSmartSend(char *command, char* buffer,int attempts, int timeout, bool wait, unsigned long lag_timeout){
+int ModemClient::commandSmartSend(char *command,char* buffer, int attempts, int timeout, bool wait){
+    return commandSmartSend(command,buffer, MCLIENT_READ_BUFFER_SIZE,attempts, timeout, wait);
+}
+int ModemClient::commandSmartSend(char *command, char* buffer,size_t size,int attempts, int timeout, bool wait){
     int attempt = 0;
    
     while(attempt < attempts){
         modem->send(command);
-        ReadResponseResultEnum read_result = modem->readResponse(buffer,timeout,wait,lag_timeout);
+        ReadResponseResultEnum read_result = modem->readResponse(buffer,size,wait,timeout);
         if(read_result == READ_OK){
             break;
         }else if(read_result != READ_TIMEOUT){
@@ -123,8 +125,6 @@ int ModemClient::commandSmartSend(char *command, char* buffer,int attempts, int 
                     last_error = CE_CME_ERROR;
                     break;
             }
-            // Serial.println("OTHER ERROR");
-            // Serial.println(last_error);
             return -1;
         }else{
             attempt++;
@@ -132,18 +132,18 @@ int ModemClient::commandSmartSend(char *command, char* buffer,int attempts, int 
     }
     if(attempt >= attempts){
         last_error = CE_TIMEOUT;
-        // Serial.println("TIMEOUT");
         return -1;
     }
-    // Serial.print("BUF: ");
-    // Serial.println(buffer);
     return 0;
 }
-int ModemClient::commandSmartRead(char* buffer,int attempts, int timeout, bool wait){
+int ModemClient::commandSmartRead(char* buffer, int attempts, int timeout, bool wait){
+    return commandSmartRead(buffer, MCLIENT_READ_BUFFER_SIZE,attempts, timeout, wait);
+}
+int ModemClient::commandSmartRead(char* buffer,size_t size, int attempts, int timeout, bool wait){
     int attempt = 0;
    
     while(attempt < attempts){
-        ReadResponseResultEnum read_result = modem->readResponse(buffer,timeout,wait);
+        ReadResponseResultEnum read_result = modem->readResponse(buffer,size,wait,timeout);
         if(read_result == READ_OK){
             break;
         }else if(read_result != READ_TIMEOUT){
@@ -159,8 +159,6 @@ int ModemClient::commandSmartRead(char* buffer,int attempts, int timeout, bool w
                     last_error = CE_CME_ERROR;
                     break;
             }
-            // Serial.println("OTHER ERROR");
-            // Serial.println(last_error);
             return -1;
         }else{
             attempt++;
@@ -168,11 +166,8 @@ int ModemClient::commandSmartRead(char* buffer,int attempts, int timeout, bool w
     }
     if(attempt >= attempts){
         last_error = CE_TIMEOUT;
-        // Serial.println("TIMEOUT");
         return -1;
     }
-    // Serial.print("BUF: ");
-    // Serial.println(buffer);
     return 0;
 }
 bool ModemClient::waitForBytePrompt(unsigned long timeout){
@@ -286,7 +281,7 @@ int ModemClient::socketWriteTCP(int socket, const char* buffer, size_t buffer_le
             chunk_size = SOCKET_WRITE_MAX_SIZE;
         }
 
-        snprintf(command,MCLIENT_BUFFER_SIZE, "AT+USOWR=%d,%d,\"",socket, (uint16_t)chunk_size);
+        snprintf(command,MCLIENT_WRITE_BUFFER_SIZE, "AT+USOWR=%d,%d,\"",socket, (uint16_t)chunk_size);
         // strncpy(command,"AT+USOWR=",MCLIENT_BUFFER_SIZE);
         // command += socket;
         // command += ",";
@@ -301,10 +296,10 @@ int ModemClient::socketWriteTCP(int socket, const char* buffer, size_t buffer_le
 
             dual_byte[0] = (char)(n1 > 9 ? 'A' + n1 - 10 : '0' + n1);
             dual_byte[1] = (char)(n2 > 9 ? 'A' + n2 - 10 : '0' + n2);
-            strncat(command,dual_byte,MCLIENT_BUFFER_SIZE-command_len-i);
+            strncat(command,dual_byte,MCLIENT_WRITE_BUFFER_SIZE-command_len-i);
         }
         command_len = strlen(command);
-        strncat(command,"\"",MCLIENT_BUFFER_SIZE-command_len);
+        strncat(command,"\"",MCLIENT_WRITE_BUFFER_SIZE-command_len);
 
         int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT,true);
         if(val == -1){
@@ -322,7 +317,7 @@ int ModemClient::socketWriteTCP(int socket, char* buffer){
 int ModemClient::socketReadTCP(int socket, char* return_buffer, size_t size){
     _buffer[0] = '\0';
     //limit the max number of bytes to the max read size
-    snprintf(command,MCLIENT_BUFFER_SIZE, "AT+USORD=%d,%d",socket, size > SOCKET_READ_MAX_SIZE ? SOCKET_READ_MAX_SIZE : size);
+    snprintf(command,MCLIENT_WRITE_BUFFER_SIZE, "AT+USORD=%d,%d",socket, size > SOCKET_READ_MAX_SIZE ? SOCKET_READ_MAX_SIZE : size);
 
 
     int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);

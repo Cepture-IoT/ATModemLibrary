@@ -39,7 +39,8 @@
 #define SOCKET_READ_MAX_SIZE 512
 #define COMMAND_TIMEOUT 200
 #define PROMP_TIMEOUT 2000
-#define MCLIENT_BUFFER_SIZE 1024+64
+#define MCLIENT_READ_BUFFER_SIZE 1024+64
+#define MCLIENT_WRITE_BUFFER_SIZE 1024+64
 enum CommandErrorEnum{
     CE_TIMEOUT,
     CE_ERROR,
@@ -151,11 +152,13 @@ class ModemClient : public Client {
         bool waitForBytePrompt(unsigned long timeout);
         CommandErrorEnum last_error = CE_TIMEOUT;
     private:
-        int commandSmartSend(char *command, char* buffer, int attempts, int timeout, bool wait, unsigned long lag_timeout = 50);
+        int commandSmartSend(char *command, char* buffer, int attempts, int timeout, bool wait);
         int commandSmartRead(char* buffer,int attempts, int timeout, bool wait);
+        int commandSmartSend(char *command, char* buffer, size_t size,int attempts, int timeout, bool wait);
+        int commandSmartRead(char* buffer,size_t size,int attempts, int timeout, bool wait);
         SARAModem* modem;
-        char _buffer[MCLIENT_BUFFER_SIZE];
-        char command[MCLIENT_BUFFER_SIZE];
+        char _buffer[MCLIENT_READ_BUFFER_SIZE];
+        char command[MCLIENT_WRITE_BUFFER_SIZE];
         int _current_socket;
         int peek_char = -1;
         

@@ -96,7 +96,7 @@ void SARAModem::off(){
         }
     #endif
 }
-ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
+ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t size, bool wait_for_response, unsigned long timeout){
     int responseResultIndex = -1;
     unsigned long start_time = millis();
     // Serial.println("############################");
@@ -190,7 +190,7 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeo
         //if the system does echo then we want to wait still as the OK may take a while to come, if
         //echo isnt enabled then the wait_for_response thing at the start will only start when the 
         //reply from the command returns. Eg, OK.
-        if(echo_enabled && echo){
+        if(echo_enabled && echod){
             if(millis()-start_time >= timeout){
                 // Serial.println("TIMEOUT");
                 return READ_TIMEOUT;
@@ -198,7 +198,7 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeo
         }
         //the board can read too fast for serial data to show up so wait for a period of time if no data is available incase its just lag
         unsigned long lag_start = millis();
-        while(!sara_serial->available() && millis() - lag_start <= lag_timeout){
+        while(!sara_serial->available() && millis() - lag_start <= 100){
             delay(10);
         }
     }
@@ -263,4 +263,12 @@ bool SARAModem::available(){
 }
 char SARAModem::read(){
     return sara_serial->read();
+}
+int SARAModem::echo(bool on){
+    char* echo_command = "ATE1";
+    if(!on){
+        echo_command[3] = '0';
+    }
+    send(echo_command);
+    return readResponse(NULL, true, 1000);
 }

@@ -32,7 +32,7 @@ class SARAModem{
         void off();
         BeginResultEnum begin();
         //reads the response from the sara module, if echo detected skips echo, stores everything after echo other than the OK/ERROR/whatever at the end
-        ReadResponseResultEnum readResponse(char* response_buffer, unsigned long time_out, bool wait_for_response = false, unsigned long lag_timeout = 50);
+        ReadResponseResultEnum readResponse(char* response_buffer, size_t size, bool wait_for_response = false, unsigned long time_out = 1000);
         bool echo_enabled;
         
         size_t write(uint8_t c);
@@ -44,6 +44,7 @@ class SARAModem{
 
         bool available();
         char read();
+        int echo(bool on);
     private:
         HardwareSerial* sara_serial;
         int baudrate;
