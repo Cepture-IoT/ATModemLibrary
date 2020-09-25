@@ -153,12 +153,10 @@ class ModemClient : public Client {
         CommandErrorEnum last_error = CE_TIMEOUT;
 
         int commandSmartSend(char *command, char* buffer, size_t size, int attempts, int timeout, bool wait);
-        int commandSmartSend(char *command, char* buffer, size_t size,int attempts, int timeout, bool wait);
+        int commandSmartRead(char* buffer, size_t size,int attempts, int timeout, bool wait);
     private:
         int commandSmartSend(char *command, char* buffer, int attempts, int timeout, bool wait);
         int commandSmartRead(char* buffer,int attempts, int timeout, bool wait);
-        int commandSmartSend(char *command, char* buffer, size_t size,int attempts, int timeout, bool wait);
-        int commandSmartRead(char* buffer,size_t size,int attempts, int timeout, bool wait);
         SARAModem* modem;
         char _buffer[MCLIENT_READ_BUFFER_SIZE];
         char command[MCLIENT_WRITE_BUFFER_SIZE];

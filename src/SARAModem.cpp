@@ -25,12 +25,10 @@ SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, i
     echo_enabled(echo){
 
     }
-//     {
-//         read_buffer.reserve(256);
-// }
 BeginResultEnum SARAModem::begin(){
     on();
     sara_serial->begin(baudrate);
+    echo(echo_enabled);
     return BEGIN_SUCCESS;
 }
 void SARAModem::on(){
@@ -53,12 +51,14 @@ void SARAModem::on(){
     // delay(100);
     // digitalWrite(reset_pin, LOW);
     #if USE_V_INT_PIN
-        while(true){
-            if(digitalRead(v_int_pin) == HIGH){
-                break;
+        if(v_int_pin != -1){
+            while(true){
+                if(digitalRead(v_int_pin) == HIGH){
+                    break;
+                }
+                //chose 250ms so it can deep sleep a little extra
+                delay(250);
             }
-            //chose 250ms so it can deep sleep a little extra
-            delay(250);
         }
     #else
         //as we arent checking for V_INT being low we need to have a delay so we dont damage the module
@@ -76,12 +76,14 @@ void SARAModem::off(){
     //power enable off
     #if USE_POWER_CTRL_PIN
         #if USE_V_INT_PIN
-            while(true){
-                if(digitalRead(v_int_pin) == LOW){
-                    break;
+            if(v_int_pin != -1){
+                while(true){
+                    if(digitalRead(v_int_pin) == LOW){
+                        break;
+                    }
+                    //chose 250ms so it can deep sleep a little extra
+                    delay(250);
                 }
-                //chose 250ms so it can deep sleep a little extra
-                delay(250);
             }
         #else
             //as we arent checking for V_INT being low we need to have a delay so we dont damage the module
@@ -183,7 +185,7 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t _size, bool 
 
             //add to buffer with new lines and stuff incase a second thing comes in
             //TODO: Maybe fixed overflow writing
-            strncat(buffer,read_buffer,size-strlen(buffer));
+            strncat(buffer,read_buffer,_size-strlen(buffer));
             read_buffer[0] = '\0';
             read_buffer_ind = 0;
         }
