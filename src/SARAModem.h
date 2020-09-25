@@ -7,6 +7,10 @@
 #include <stdio.h>
 
 #define MODEM_BUFFER_SIZE 1024
+#define USE_POWER_CTRL_PIN true
+#define POWER_CTRL_OFF_IS_LOW true
+#define POWER_PIN_HIGH_NORMAL true
+#define USE_V_INT_PIN true
 enum ReadResponseResultEnum {
     READ_TIMEOUT,
     READ_OK,
@@ -22,6 +26,7 @@ int lastStrStr(char* base_str, char* in_str);
 int lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len);
 class SARAModem{
     public:
+        SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, int power_control_pin, int v_int_pin, bool echo);
         SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo);
         void on();
         void off();
@@ -44,6 +49,12 @@ class SARAModem{
         int baudrate;
         int power_pin;
         int reset_pin;
+        #if USE_POWER_CTRL_PIN
+            int pwr_ctrl_pin;
+        #endif
+        #if USE_V_INT_PIN
+            int v_int_pin;
+        #endif
 
         //String read_buffer;
         char read_buffer[MODEM_BUFFER_SIZE];

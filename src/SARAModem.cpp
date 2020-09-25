@@ -14,7 +14,10 @@ int lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len){
     }
     return -1;
 }
-SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo):
+SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo){
+    SARAModem(sara_serial, baudrate, power_pin, reset_pin, -1, -1, echo);
+}
+SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, int power_control_pin, int v_int_pin, bool echo):
     sara_serial(&sara_serial),
     baudrate(baudrate),
     power_pin(power_pin),
@@ -33,21 +36,65 @@ BeginResultEnum SARAModem::begin(){
 void SARAModem::on(){
     // enable the POW_ON pin
     pinMode(power_pin, OUTPUT);
-    digitalWrite(power_pin, HIGH);
+    #if POWER_PIN_HIGH_NORMAL
+        digitalWrite(power_pin, LOW);
+        delay(200);
+        digitalWrite(power_pin,HIGH);
+    #else
+        digitalWrite(power_pin, HIGH);
+        delay(200);
+        digitalWrite(power_pin, LOW);
+    #endif
     //reset pin shouldnt be used using this
     // digitalWrite(reset_pin, LOW);
     // reset the ublox module
-    pinMode(reset_pin, OUTPUT);
-    digitalWrite(reset_pin, HIGH);
-    delay(100);
-    digitalWrite(reset_pin, LOW);
+    // pinMode(reset_pin, OUTPUT);
+    // digitalWrite(reset_pin, HIGH);
+    // delay(100);
+    // digitalWrite(reset_pin, LOW);
+    #if USE_V_INT_PIN
+        while(true){
+            if(digitalRead(v_int_pin) == HIGH){
+                break;
+            }
+            //chose 250ms so it can deep sleep a little extra
+            delay(250);
+        }
+    #else
+        //as we arent checking for V_INT being low we need to have a delay so we dont damage the module
+        delay(5000);
+    #endif
 }
 void SARAModem::off(){
     sara_serial->end();
     // digitalWrite(reset_pin, HIGH);
 
     // power off module
-    digitalWrite(power_pin, LOW);
+    digitalWrite(power_pin, HIGH);
+    
+
+    //power enable off
+    #if USE_POWER_CTRL_PIN
+        #if USE_V_INT_PIN
+            while(true){
+                if(digitalRead(v_int_pin) == LOW){
+                    break;
+                }
+                //chose 250ms so it can deep sleep a little extra
+                delay(250);
+            }
+        #else
+            //as we arent checking for V_INT being low we need to have a delay so we dont damage the module
+            delay(5000);
+        #endif
+        if(pwr_ctrl_pin != -1){
+            #if POWER_CTRL_OFF_IS_LOW
+                digitalWrite(pwr_ctrl_pin,LOW);
+            #else
+                digitalWrite(pwr_ctrl_pin,HIGH);
+            #endif
+        }
+    #endif
 }
 ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeout, bool wait_for_response, unsigned long lag_timeout){
     int responseResultIndex = -1;
@@ -65,6 +112,7 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeo
     ReadResponseResultEnum result = READ_ERROR;
     size_t read_buffer_ind = 0;
     bool exceeded = false;
+    bool echod = false;
     while(sara_serial->available()){
         char c = sara_serial->read();
         // read_buffer += c;
@@ -92,6 +140,7 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeo
                 //echo has occured so empty buffer
                 read_buffer[0] = '\0';
                 read_buffer_ind = 0;
+                echod = true;
                 continue;
             }
             //check for special response
@@ -138,9 +187,18 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, unsigned long timeo
             read_buffer[0] = '\0';
             read_buffer_ind = 0;
         }
+        //if the system does echo then we want to wait still as the OK may take a while to come, if
+        //echo isnt enabled then the wait_for_response thing at the start will only start when the 
+        //reply from the command returns. Eg, OK.
+        if(echo_enabled && echo){
+            if(millis()-start_time >= timeout){
+                // Serial.println("TIMEOUT");
+                return READ_TIMEOUT;
+            }
+        }
         //the board can read too fast for serial data to show up so wait for a period of time if no data is available incase its just lag
-        start_time = millis();
-        while(!sara_serial->available() && millis() - start_time <= lag_timeout){
+        unsigned long lag_start = millis();
+        while(!sara_serial->available() && millis() - lag_start <= lag_timeout){
             delay(10);
         }
     }
