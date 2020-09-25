@@ -11,7 +11,7 @@
 #define USE_POWER_CTRL_PIN true
 #define POWER_CTRL_OFF_IS_LOW true
 #define POWER_PIN_HIGH_NORMAL true
-#define USE_V_INT_PIN true
+#define USE_V_INT_PIN false
 enum ReadResponseResultEnum {
     READ_TIMEOUT,
     READ_OK,
@@ -51,12 +51,9 @@ class SARAModem{
         int baudrate;
         int power_pin;
         int reset_pin;
-        #if USE_POWER_CTRL_PIN
-            int pwr_ctrl_pin;
-        #endif
-        #if USE_V_INT_PIN
-            int v_int_pin;
-        #endif
+        int pwr_ctrl_pin;
+        int v_int_pin;
+
 
         //String read_buffer;
         char read_buffer[MODEM_BUFFER_SIZE];

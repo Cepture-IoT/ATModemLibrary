@@ -1,5 +1,4 @@
 #include "SARAModem.h"
-
 int lastStrStr(char* base_str, char* in_str){
     return lastStrStr(base_str,strlen(base_str),in_str,strlen(in_str));
 }
@@ -17,12 +16,15 @@ int lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len){
 SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo){
     SARAModem(sara_serial, baudrate, power_pin, reset_pin, -1, -1, echo);
 }
-SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, int power_control_pin, int v_int_pin, bool echo):
+SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, int _power_control_pin, int _v_int_pin, bool echo):
     sara_serial(&sara_serial),
     baudrate(baudrate),
     power_pin(power_pin),
     reset_pin(reset_pin),
-    echo_enabled(echo){
+    echo_enabled(echo),
+    v_int_pin(v_int_pin),
+    pwr_ctrl_pin(_power_control_pin)
+    {
 
     }
 BeginResultEnum SARAModem::begin(){
@@ -35,21 +37,20 @@ void SARAModem::on(){
     // enable the POW_ON pin
     pinMode(power_pin, OUTPUT);
     #if POWER_PIN_HIGH_NORMAL
-        digitalWrite(power_pin, LOW);
-        delay(200);
         digitalWrite(power_pin,HIGH);
-    #else
-        digitalWrite(power_pin, HIGH);
-        delay(200);
+        delay(100);
         digitalWrite(power_pin, LOW);
+
+    #else
+        digitalWrite(power_pin,LOW);
+        delay(500);
+        digitalWrite(power_pin, HIGH);
     #endif
     //reset pin shouldnt be used using this
     // digitalWrite(reset_pin, LOW);
     // reset the ublox module
-    // pinMode(reset_pin, OUTPUT);
-    // digitalWrite(reset_pin, HIGH);
-    // delay(100);
-    // digitalWrite(reset_pin, LOW);
+    pinMode(reset_pin, OUTPUT);
+    digitalWrite(reset_pin, HIGH);
     #if USE_V_INT_PIN
         if(v_int_pin != -1){
             while(true){
@@ -57,12 +58,12 @@ void SARAModem::on(){
                     break;
                 }
                 //chose 250ms so it can deep sleep a little extra
-                delay(250);
+                delay(251);
             }
         }
     #else
         //as we arent checking for V_INT being low we need to have a delay so we dont damage the module
-        delay(5000);
+        delay(5001);
     #endif
 }
 void SARAModem::off(){
@@ -82,12 +83,12 @@ void SARAModem::off(){
                         break;
                     }
                     //chose 250ms so it can deep sleep a little extra
-                    delay(250);
+                    delay(251);
                 }
             }
         #else
             //as we arent checking for V_INT being low we need to have a delay so we dont damage the module
-            delay(5000);
+            delay(5001);
         #endif
         if(pwr_ctrl_pin != -1){
             #if POWER_CTRL_OFF_IS_LOW
@@ -129,11 +130,11 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t _size, bool 
         //if newline or carriage return then a message has ended
         if(c == '\n'){
             read_buffer[read_buffer_ind+1] = '\0';
-            // Serial.println("###########");
-            // Serial.print(result);
-            // Serial.print(" ");
-            // Serial.println(read_buffer);
-            // Serial.println(read_buffer_ind);
+             Serial.println("###########");
+             Serial.print(result);
+             Serial.print(" ");
+             Serial.println(read_buffer);
+             Serial.println(read_buffer_ind);
             
             //check if echo
             //responseResultIndex = read_buffer.lastIndexOf("AT");
@@ -267,10 +268,11 @@ char SARAModem::read(){
     return sara_serial->read();
 }
 int SARAModem::echo(bool on){
-    char* echo_command = "ATE1";
+    char echo_command[5] = "ATE1";
     if(!on){
         echo_command[3] = '0';
     }
     send(echo_command);
-    return readResponse(NULL, true, 1000);
+    char tmp[10] = "\0";
+    return readResponse(tmp, true, 1000);
 }
