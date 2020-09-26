@@ -139,6 +139,7 @@ int ModemClient::commandSmartSend(char *command, char* buffer,size_t size,int at
 int ModemClient::commandSmartRead(char* buffer, int attempts, int timeout, bool wait){
     return commandSmartRead(buffer, MCLIENT_READ_BUFFER_SIZE,attempts, timeout, wait);
 }
+
 int ModemClient::commandSmartRead(char* buffer,size_t size, int attempts, int timeout, bool wait){
     int attempt = 0;
    
@@ -250,7 +251,7 @@ int ModemClient::socketClose(int socket, bool async){
     _buffer[0] = '\0';
     snprintf(command,50, "AT+USOCL=%d,%d",socket,async);
 
-    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 10000);
+    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);
     if(val == -1){
         return -1;
     }
@@ -260,7 +261,7 @@ int ModemClient::socketConnect(int socket, const char* address, int port){
     _buffer[0] = '\0';
     snprintf(command,50, "AT+USOCO=%d,\"%s\",%d",socket, address, port);
 
-    int val = commandSmartSend(command,_buffer,10,10000 ,true,10000);
+    int val = commandSmartSend(command,_buffer,10,10000 ,true);
     if(val == -1){
         return -1;
     }
@@ -398,7 +399,7 @@ int ModemClient::socketConfigureSecurity(int socket, bool enabled, int profile){
     _buffer[0] = '\0';
     snprintf(command,50, "AT+USOSEC=%d, %d, %d",socket, enabled, profile);
 
-    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true, 1000);
+    int val = commandSmartSend(command,_buffer,10,COMMAND_TIMEOUT ,true);
     if(val == -1){
         return -1;
     }
@@ -440,7 +441,7 @@ int ModemClient::attachDetatchGPRS(bool attach){
     _buffer[0] = '\0';
     snprintf(command,50, "AT+CGATT=%d",attach);
 
-    int val = commandSmartSend(command,_buffer,10,100, true,100);
+    int val = commandSmartSend(command,_buffer,10,100, true);
     if(val == -1){
         return -1;
     }
@@ -513,7 +514,7 @@ int ModemClient::shutdown(){
 }
 int ModemClient::getTime(time_t &time,bool local){
     _buffer[0] = '\0';
-    int val = commandSmartSend("AT+CCLK?",_buffer,10,1001 ,true);
+    int val = commandSmartSend("AT+CCLK?",_buffer,10,1000 ,true);
     if(val == -1){
         return -1;
     }

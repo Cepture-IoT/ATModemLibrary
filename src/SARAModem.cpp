@@ -13,20 +13,20 @@ int lastStrStr(char* base_str, size_t base_len, char* in_str, size_t in_len){
     }
     return -1;
 }
-SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo){
-    SARAModem(sara_serial, baudrate, power_pin, reset_pin, -1, -1, echo);
+SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, bool echo):
+SARAModem(sara_serial, baudrate, power_pin, reset_pin, -1, -1, echo)
+{
+    
 }
-SARAModem::SARAModem(HardwareSerial &sara_serial, int baudrate, int power_pin, int reset_pin, int _power_control_pin, int _v_int_pin, bool echo):
-    sara_serial(&sara_serial),
-    baudrate(baudrate),
-    power_pin(power_pin),
-    reset_pin(reset_pin),
-    echo_enabled(echo),
-    v_int_pin(v_int_pin),
-    pwr_ctrl_pin(_power_control_pin)
-    {
-
-    }
+SARAModem::SARAModem(HardwareSerial &_sara_serial, int _baudrate, int _power_pin, int _reset_pin, int _power_control_pin, int _v_int_pin, bool echo){
+    sara_serial = &_sara_serial;
+    baudrate = _baudrate;
+    power_pin = _power_pin;
+    reset_pin = _reset_pin;
+    echo_enabled = echo;
+    v_int_pin = _v_int_pin;
+    pwr_ctrl_pin = _power_control_pin;
+}
 BeginResultEnum SARAModem::begin(){
     on();
     sara_serial->begin(baudrate);
@@ -122,19 +122,19 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t _size, bool 
         read_buffer[read_buffer_ind] = c;
         //dont let the buffer index grow larger than the buffer
         read_buffer_ind++;
-        if(read_buffer_ind >= MODEM_BUFFER_SIZE-1){
+        if(read_buffer_ind >= MODEM_BUFFER_SIZE){
             exceeded = true;
             read_buffer_ind -= 1;
         }
         
         //if newline or carriage return then a message has ended
         if(c == '\n'){
-            read_buffer[read_buffer_ind+1] = '\0';
-             Serial.println("###########");
-             Serial.print(result);
-             Serial.print(" ");
-             Serial.println(read_buffer);
-             Serial.println(read_buffer_ind);
+            read_buffer[read_buffer_ind] = '\0';
+            //  Serial.println("###########");
+            //  Serial.print(result);
+            //  Serial.print(" ");
+            //  Serial.println(read_buffer);
+            //  Serial.println(read_buffer_ind);
             
             //check if echo
             //responseResultIndex = read_buffer.lastIndexOf("AT");
@@ -186,7 +186,10 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t _size, bool 
 
             //add to buffer with new lines and stuff incase a second thing comes in
             //TODO: Maybe fixed overflow writing
-            strncat(buffer,read_buffer,_size-strlen(buffer));
+            if(buffer != NULL){
+                strncat(buffer,read_buffer,_size-strlen(buffer));
+            }
+            
             read_buffer[0] = '\0';
             read_buffer_ind = 0;
         }
@@ -205,7 +208,9 @@ ReadResponseResultEnum SARAModem::readResponse(char* buffer, size_t _size, bool 
             delay(10);
         }
     }
-    
+    // Serial.print("READED: ");
+    // Serial.println(buffer);
+    // Serial.println(result);
     if(exceeded){
         return READ_BUFFER_TOO_SMALL;
     }
@@ -239,15 +244,10 @@ size_t SARAModem::write(const uint8_t* buf, size_t size)
 
 void SARAModem::send(const char* command)
 {
-//   // compare the time of the last response or URC and ensure
-//   // at least 20ms have passed before sending a new command
-//   unsigned long delta = millis() - _lastResponseOrUrcMillis;
-//   if(delta < MODEM_MIN_RESPONSE_OR_URC_WAIT_TIME_MS) {
-//     delay(MODEM_MIN_RESPONSE_OR_URC_WAIT_TIME_MS - delta);
-//   }
+    // Serial.print("COMM: ");
     // Serial.println(command);
-  sara_serial->println(command);
-  sara_serial->flush();
+    sara_serial->println(command);
+    sara_serial->flush();
 }
 
 void SARAModem::sendf(const char *fmt, ...)
@@ -273,6 +273,5 @@ int SARAModem::echo(bool on){
         echo_command[3] = '0';
     }
     send(echo_command);
-    char tmp[10] = "\0";
-    return readResponse(tmp, true, 1000);
+    return readResponse(NULL, true, 1000);
 }
