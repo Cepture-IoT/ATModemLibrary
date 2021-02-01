@@ -33,6 +33,7 @@
 // AT+CREG
 #include "SARAModem.h"
 #include <Client.h>
+#include <Arduino.h>
 #define SOCKET_MIN 0
 #define SOCKET_MAX 6
 #define SOCKET_WRITE_MAX_SIZE 512
@@ -97,7 +98,13 @@ enum NetworkStatusEnum{
     NETSTAT_REGISTERED_ROAMING = 5,
     NETSTAT_EMERGENCY_ONLY = 8
 };
-
+struct ListenSocketInfo{
+    int socket;
+    uint8_t ip_address[4];
+    int listen_socket;
+    uint8_t local_ip_address[4];
+    int listen_port;
+};
 class ModemClient : public Client {
     public:
         ModemClient(SARAModem &modem);
@@ -145,6 +152,7 @@ class ModemClient : public Client {
         int socketSetSecurityProfile(int profile, int op_code);
         int socketConnect(int socket, const char* address, int port);
         int socketClose(int socket, bool async);
+        int socketSetListen(int socket, int port);
         int socketWriteTCP(int socket, const char* buffer, size_t length);
         int socketWriteTCP(int socket, char* buffer);
         int socketReadTCP(int socket, char* return_buffer, size_t size);

@@ -43,7 +43,7 @@ class SARAModem{
         void send(const String& command) { send(command.c_str()); }
         void sendf(const char *fmt, ...);
 
-        bool available();
+        int available();
         char read();
         int echo(bool on);
     private:

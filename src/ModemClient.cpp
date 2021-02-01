@@ -544,3 +544,41 @@ int ModemClient::getTime(time_t &time,bool local){
         return 1;
     }
 }
+int ModemClient::socketSetListen(int socket, int port){
+    _buffer[0] = '\0';
+    snprintf(command,50, "AT+USOCLI=%d,%d",socket,port);
+    int val = commandSmartSend(command,_buffer,10,40000 ,true);
+    if(val == -1){
+        return -1;
+    }
+    return val;
+}
+int ModemClient::socketCheckForListen(char* buffer, ListenSocketInfo &socket_info){
+
+    int socket;
+    uint8_t ip_address[4];
+    int port;
+    int listen_socket;
+    uint8_t local_ip_address[4];
+    int listen_port;
+
+    int sscanf_result = sscanf(buffer,"+UUSOLI: %d,\"%d.%d.%d.%d\", %d, %d,\"%d.%d.%d.%d\",%d",
+                                            socket_info.socket,
+                                            socket_info.ip_address[0],
+                                            socket_info.ip_address[1],
+                                            socket_info.ip_address[2],
+                                            socket_info.ip_address[3],
+                                            socket_info.port,
+                                            socket_info.listen_socket,
+                                            socket_info.local_ip_address[0],
+                                            socket_info.local_ip_address[1],
+                                            socket_info.local_ip_address[2],
+                                            socket_info.local_ip_address[3],
+                                            socket_info.listen_port);
+    //if sscanf finds less than 1 value
+    if(sscanf_result < 1){
+        //expected reply value doesnt exists
+        return -1;
+    }
+    return 1;
+}
